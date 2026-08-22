@@ -1,0 +1,67 @@
+<!doctype html><html lang="it"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>AI Italia</title><meta name="theme-color" content="#0b63ce">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="AI Italia">
+<link rel="apple-touch-icon" href="./icon-180.png?v=1"><link rel="manifest" href="./manifest.webmanifest?v=1">
+<link rel="icon" sizes="192x192" href="./icon-192.png?v=1"><link rel="icon" sizes="512x512" href="./icon-512.png?v=1">
+<style>
+:root{--bg:#07111f;--p:#0d1b2a;--p2:#12243a;--t:#f7fbff;--m:#a9bad0;--a:#2f80ed;--a2:#7b61ff;--l:#213a55}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(160deg,#07111f,#11172b);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
+.app{max-width:900px;margin:auto;padding:14px 12px 40px}header{display:flex;justify-content:space-between;align-items:center}h1{margin:0;font-size:27px}.sub,.status{color:var(--m);font-size:13px}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0}.tab,button{border:1px solid var(--l);background:#10253d;color:#fff;border-radius:13px;padding:11px;font-weight:800}.tab.active,.primary{background:linear-gradient(135deg,var(--a),var(--a2));border:0}
+.panel{display:none}.panel.active{display:block}.card{background:rgba(13,27,42,.97);border:1px solid var(--l);border-radius:18px;padding:14px;margin-bottom:12px}
+textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;color:white;border-radius:13px;padding:12px;font-size:15px}textarea{min-height:110px}
+.row{display:flex;gap:8px;margin-top:8px}.row>*{flex:1}.chat{height:48vh;min-height:320px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:5px}
+.msg{max-width:85%;padding:11px 12px;border-radius:14px;white-space:pre-wrap;line-height:1.45}.user{align-self:flex-end;background:#315fce}.ai{align-self:flex-start;background:#152b43}
+.preview{margin-top:10px;min-height:130px;border:1px solid var(--l);border-radius:15px;display:flex;align-items:center;justify-content:center;overflow:hidden}.preview img,.preview video{width:100%;display:block}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.item{background:#10243a;border:1px solid var(--l);border-radius:15px;overflow:hidden}.item img,.item video{width:100%;aspect-ratio:1.2/1;object-fit:cover}.pad{padding:9px}
+code{background:#06101c;padding:2px 5px;border-radius:6px}@media(max-width:650px){.tabs{grid-template-columns:repeat(3,1fr)}.row{flex-direction:column}.grid{grid-template-columns:1fr}}
+</style></head><body><div class="app">
+<header><div><h1>🤖 AI Italia</h1><div class="sub">Chat, immagini e video</div></div><div class="sub" id="clock"></div></header>
+<div class="tabs">
+<button class="tab active" data-id="chat">💬 Chat</button><button class="tab" data-id="images">🖼️ Immagini</button><button class="tab" data-id="video">🎬 Video</button><button class="tab" data-id="archive">📁 Archivio</button><button class="tab" data-id="settings">⚙️ Impostazioni</button>
+</div>
+
+<section class="panel active" id="chat"><div class="card"><h2>Assistente AI</h2><div class="chat" id="chatbox"></div>
+<div class="row"><textarea id="chatInput" placeholder="Scrivi una domanda..."></textarea><button class="primary" id="sendChat">Invia</button></div><div class="status" id="chatStatus"></div></div></section>
+
+<section class="panel" id="images">
+<div class="card"><h2>Crea immagine</h2><textarea id="imagePrompt" placeholder="Descrivi l'immagine da creare"></textarea>
+<div class="row"><select id="imageSize"><option>1024x1024</option><option>1536x1024</option><option>1024x1536</option></select><button class="primary" id="makeImage">✨ Genera</button></div>
+<div class="preview" id="imagePreview"><span class="sub">L'immagine apparirà qui</span></div><div class="status" id="imageStatus"></div></div>
+<div class="card"><h3>Modifica immagine</h3><input type="file" id="editFile" accept="image/*"><textarea id="editPrompt" placeholder="Descrivi la modifica" style="margin-top:8px"></textarea>
+<button class="primary" id="editImage" style="width:100%;margin-top:8px">🪄 Modifica</button><div class="preview" id="editPreview"><span class="sub">Il risultato apparirà qui</span></div><div class="status" id="editStatus"></div></div>
+</section>
+
+<section class="panel" id="video"><div class="card"><h2>Crea video AI</h2><textarea id="videoPrompt" placeholder="Descrivi il video da creare"></textarea>
+<input type="file" id="videoFile" accept="image/*" style="margin-top:8px"><div class="row"><select id="duration"><option value="5">5 secondi</option><option value="10">10 secondi</option><option value="15">15 secondi</option></select><button class="primary" id="makeVideo">🎬 Genera video</button></div>
+<div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui</span></div><div class="status" id="videoStatus"></div></div></section>
+
+<section class="panel" id="archive"><div class="card"><div class="row"><div><h2>Archivio</h2><div class="sub">Contenuti salvati sul dispositivo</div></div><button id="clearArchive">Svuota</button></div><div class="grid" id="archiveGrid" style="margin-top:10px"></div></div></section>
+
+<section class="panel" id="settings"><div class="card"><h2>Collegamento AI</h2><p class="sub">GitHub Pages è statico. Per far funzionare davvero chat, immagini e video serve un backend sicuro. Non inserire chiavi API direttamente nell'app.</p>
+<input id="backend" placeholder="https://tuo-backend.example.com"><div class="row"><button class="primary" id="saveBackend">Salva</button><button id="testBackend">Test</button></div><div class="status" id="backendStatus"></div>
+<p class="sub">Endpoint previsti:<br><code>POST /api/chat</code><br><code>POST /api/image</code><br><code>POST /api/image/edit</code><br><code>POST /api/video</code><br><code>GET /api/video-status?id=...</code><br><code>GET /api/health</code></p></div></section>
+</div>
+<script>
+const $=x=>document.getElementById(x),get=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
+let backend=(localStorage.getItem("ai-backend")||"").replace(/\/+$/,"");$("backend").value=backend;
+function clock(){$("clock").textContent=new Date().toLocaleTimeString("it-IT",{hour:"2-digit",minute:"2-digit"})}clock();setInterval(clock,30000);
+document.querySelectorAll(".tab").forEach(b=>b.onclick=()=>{document.querySelectorAll(".tab,.panel").forEach(x=>x.classList.remove("active"));b.classList.add("active");$(b.dataset.id).classList.add("active");if(b.dataset.id==="archive")renderArchive()});
+function need(el){if(backend)return true;el.textContent="Apri Impostazioni e collega il backend AI.";return false}
+async function jf(path,opt){const r=await fetch(backend+path,opt);const d=await r.json().catch(()=>({}));if(!r.ok)throw Error(d.error||"Errore "+r.status);return d}
+function dataurl(f){return new Promise((ok,no)=>{const r=new FileReader();r.onload=()=>ok(r.result);r.onerror=no;r.readAsDataURL(f)})}
+let msgs=get("ai-chat",[]);function drawChat(){const b=$("chatbox");b.innerHTML="";if(!msgs.length)b.innerHTML='<div class="msg ai">Ciao! Collegami a un backend dalle Impostazioni e poi scrivimi.</div>';msgs.forEach(m=>{const e=document.createElement("div");e.className="msg "+(m.role==="user"?"user":"ai");e.textContent=m.content;b.appendChild(e)});b.scrollTop=b.scrollHeight}drawChat();
+$("sendChat").onclick=async()=>{const t=$("chatInput").value.trim();if(!t||!need($("chatStatus")))return;msgs.push({role:"user",content:t});set("ai-chat",msgs);drawChat();$("chatInput").value="";$("chatStatus").textContent="AI sta rispondendo...";try{const d=await jf("/api/chat",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({messages:msgs})});msgs.push({role:"assistant",content:d.text||d.message||d.output||"Risposta vuota"});set("ai-chat",msgs);drawChat();$("chatStatus").textContent=""}catch(e){$("chatStatus").textContent=e.message}};
+function saveItem(o){const a=get("ai-archive",[]);a.unshift({...o,date:Date.now()});set("ai-archive",a.slice(0,30))}
+function renderArchive(){const g=$("archiveGrid"),a=get("ai-archive",[]);g.innerHTML=a.length?"":'<div class="sub">Nessun contenuto salvato.</div>';a.forEach(o=>{const e=document.createElement("div");e.className="item";e.innerHTML=(o.type==="video"?`<video src="${o.url}" controls playsinline></video>`:`<img src="${o.url}">`)+`<div class="pad"><b>${o.type==="video"?"Video":"Immagine"} AI</b><div class="sub">${new Date(o.date).toLocaleString("it-IT")}</div></div>`;g.appendChild(e)})}
+$("clearArchive").onclick=()=>{localStorage.removeItem("ai-archive");renderArchive()};
+function imgurl(d){return d.url||(d.image_base64?"data:image/png;base64,"+d.image_base64:"")}
+$("makeImage").onclick=async()=>{const p=$("imagePrompt").value.trim();if(!p||!need($("imageStatus")))return;$("imageStatus").textContent="Generazione...";try{const d=await jf("/api/image",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p,size:$("imageSize").value})}),u=imgurl(d);if(!u)throw Error("Immagine mancante");$("imagePreview").innerHTML=`<img src="${u}">`;saveItem({type:"image",url:u});$("imageStatus").textContent="Immagine pronta."}catch(e){$("imageStatus").textContent=e.message}};
+$("editImage").onclick=async()=>{const f=$("editFile").files[0],p=$("editPrompt").value.trim();if(!f||!p||!need($("editStatus")))return;$("editStatus").textContent="Modifica...";try{const d=await jf("/api/image/edit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p,image:await dataurl(f)})}),u=imgurl(d);if(!u)throw Error("Immagine mancante");$("editPreview").innerHTML=`<img src="${u}">`;saveItem({type:"image",url:u});$("editStatus").textContent="Modifica completata."}catch(e){$("editStatus").textContent=e.message}};
+$("makeVideo").onclick=async()=>{const p=$("videoPrompt").value.trim();if(!p||!need($("videoStatus")))return;$("videoStatus").textContent="Avvio video...";try{const f=$("videoFile").files[0],d=await jf("/api/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p,duration:+$("duration").value,image:f?await dataurl(f):null})});if(d.url)return showVideo(d.url);if(!d.job_id)throw Error("job_id mancante");for(let i=0;i<100;i++){await new Promise(r=>setTimeout(r,3000));const s=await jf("/api/video-status?id="+encodeURIComponent(d.job_id));if(s.status==="failed")throw Error(s.error||"Video non riuscito");if(s.url)return showVideo(s.url);$("videoStatus").textContent="Video in elaborazione..."}}catch(e){$("videoStatus").textContent=e.message}};
+function showVideo(u){$("videoPreview").innerHTML=`<video src="${u}" controls playsinline></video>`;saveItem({type:"video",url:u});$("videoStatus").textContent="Video pronto."}
+$("saveBackend").onclick=()=>{backend=$("backend").value.trim().replace(/\/+$/,"");localStorage.setItem("ai-backend",backend);$("backendStatus").textContent="Backend salvato."};
+$("testBackend").onclick=async()=>{const b=$("backend").value.trim().replace(/\/+$/,"");if(!b)return;try{const r=await fetch(b+"/api/health");$("backendStatus").textContent=r.ok?"Collegamento riuscito.":"Errore "+r.status}catch(e){$("backendStatus").textContent="Backend non raggiungibile."}};
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=1").catch(()=>{}));
+</script></body></html>
