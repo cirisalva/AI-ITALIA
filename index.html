@@ -191,6 +191,7 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <div class="card">
 <h2>🎵 Canzone inventata</h2>
 <div class="sub">Scrivi solo l'idea: l'AI inventa automaticamente titolo, strofe e ritornello.</div>
+
 <select id="songGenre" style="margin-top:8px">
   <option value="pop">Pop</option>
   <option value="romantica">Romantica</option>
@@ -200,15 +201,50 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
   <option value="rock">Rock</option>
   <option value="altro">Altro</option>
 </select>
+
 <textarea id="songIdea" placeholder="Esempio: una canzone sull'amore che arriva all'improvviso" style="margin-top:8px"></textarea>
+
 <button class="primary" id="makeSongText" style="width:100%;margin-top:8px">✨ Crea titolo e testo</button>
+
 <textarea id="songResult" placeholder="Qui appariranno titolo e testo della canzone" style="margin-top:8px;min-height:260px"></textarea>
+
 <div class="media-actions">
   <button id="saveSongText">⬇️ Salva testo</button>
-  <button id="shareSongText">📤 Condividi</button>
+  <button id="shareSongText">📤 Condividi testo</button>
 </div>
+
+<hr style="border:0;border-top:1px solid var(--line);margin:16px 0">
+
+<h3>🎤 Canzone cantata</h3>
+<div class="sub">Usa il testo creato sopra e genera una vera traccia con musica e voce cantata.</div>
+
+<div class="row" style="margin-top:8px">
+  <select id="songSinger">
+    <option value="auto">🎙️ Voce automatica</option>
+    <option value="male">👨 Voce uomo</option>
+    <option value="female">👩 Voce donna</option>
+  </select>
+
+  <select id="songDuration">
+    <option value="30">30 secondi</option>
+    <option value="60">60 secondi</option>
+    <option value="90">90 secondi</option>
+  </select>
+</div>
+
+<button class="primary" id="makeSungSong" style="width:100%;margin-top:8px">🎤 Genera canzone cantata</button>
+
+<div class="preview" id="songAudioPreview" style="margin-top:10px">
+  <span class="sub">La canzone cantata apparirà qui.</span>
+</div>
+
+<div class="media-actions hidden" id="songAudioActions">
+  <button id="saveSongAudio">⬇️ Salva audio</button>
+  <button id="shareSongAudio">📤 Condividi audio</button>
+</div>
+
 <div class="status" id="songStatus"></div>
-<div class="notice">Questa funzione crea titolo e testo originali. Non genera ancora una vera base musicale o una canzone cantata.</div>
+<div class="notice">La generazione cantata usa ElevenLabs Music tramite il backend di AI‑ITALIA.</div>
 </div>
 
 <div class="card">
@@ -250,7 +286,7 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <input id="backend" placeholder="https://tuo-backend.example.com">
 <div class="row"><button class="primary" id="saveBackend">Salva</button><button id="testBackend">Test</button></div>
 <div class="status" id="backendStatus"></div>
-<p class="sub">Endpoint:<br><code>POST /api/chat</code><br><code>POST /api/image</code><br><code>POST /api/image/edit</code><br><code>POST /api/video</code><br><code>GET /api/video-status?id=...</code><br><code>POST /api/speech</code><br><code>GET /api/health</code></p>
+<p class="sub">Endpoint:<br><code>POST /api/chat</code><br><code>POST /api/image</code><br><code>POST /api/image/edit</code><br><code>POST /api/video</code><br><code>GET /api/video-status?id=...</code><br><code>POST /api/speech</code><br><code>POST /api/music</code><br><code>GET /api/health</code></p>
 </div>
 </section>
 </div>
@@ -270,6 +306,7 @@ let webOn=false;
 let lastImageUrl="";
 let lastEditUrl="";
 let lastVideoUrl="";
+let lastSongAudioUrl="";
 let voiceReply = localStorage.getItem("ai-voice-reply") !== "off";
 let voiceChoice = localStorage.getItem("ai-voice-choice") || "male";
 let currentAudio = null;
@@ -620,6 +657,11 @@ function mediaExtension(blob,type){
     if(mime.includes("webm")) return "webm";
     return "mp4";
   }
+  if(type==="audio"){
+    if(mime.includes("wav")) return "wav";
+    if(mime.includes("mpeg") || mime.includes("mp3")) return "mp3";
+    return "mp3";
+  }
   if(mime.includes("jpeg")) return "jpg";
   if(mime.includes("webp")) return "webp";
   return "png";
@@ -635,11 +677,15 @@ async function shareMedia(url,type,statusEl){
     const ext=mediaExtension(blob,type);
     const filename=type==="video"
       ? `AI-Italia-video.${ext}`
-      : `AI-Italia-immagine.${ext}`;
-    const file=new File([blob],filename,{type:blob.type || (type==="video"?"video/mp4":"image/png")});
+      : type==="audio"
+        ? `AI-Italia-canzone.${ext}`
+        : `AI-Italia-immagine.${ext}`;
+    const fallbackType=type==="video"?"video/mp4":type==="audio"?"audio/mpeg":"image/png";
+    const file=new File([blob],filename,{type:blob.type || fallbackType});
 
     if(navigator.share){
-      const data={files:[file],title:type==="video"?"Video AI Italia":"Immagine AI Italia"};
+      const shareTitle=type==="video"?"Video AI Italia":type==="audio"?"Canzone AI Italia":"Immagine AI Italia";
+      const data={files:[file],title:shareTitle};
       if(!navigator.canShare || navigator.canShare({files:[file]})){
         await navigator.share(data);
         status.textContent="Condivisione aperta.";
@@ -743,6 +789,75 @@ $("makeSongText").onclick=async()=>{
 
 $("saveSongText").onclick=()=>saveTextFile($("songResult").value.trim(),"AI-Italia-canzone.txt");
 $("shareSongText").onclick=()=>shareTextContent($("songResult").value.trim(),"Canzone AI Italia",$("songStatus"));
+
+$("makeSungSong").onclick=async()=>{
+  const idea=$("songIdea").value.trim();
+  const lyrics=$("songResult").value.trim();
+
+  if(!idea && !lyrics){
+    $("songStatus").textContent="Prima scrivi un'idea o genera il testo della canzone.";
+    return;
+  }
+  if(!need($("songStatus")))return;
+
+  $("songStatus").textContent="Generazione della canzone cantata…";
+  $("makeSungSong").disabled=true;
+
+  try{
+    if(lastSongAudioUrl && lastSongAudioUrl.startsWith("blob:")){
+      try{URL.revokeObjectURL(lastSongAudioUrl)}catch{}
+    }
+
+    const r=await fetch(backend+"/api/music",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        prompt:idea,
+        lyrics,
+        genre:$("songGenre").value,
+        vocalist:$("songSinger").value,
+        duration:Number($("songDuration").value)
+      })
+    });
+
+    if(!r.ok){
+      let message="Errore generazione canzone "+r.status;
+      try{
+        const d=await r.json();
+        message=d.error||message;
+      }catch{}
+      throw Error(message);
+    }
+
+    const blob=await r.blob();
+    if(!blob.size)throw Error("Audio vuoto.");
+
+    lastSongAudioUrl=URL.createObjectURL(blob);
+
+    $("songAudioPreview").innerHTML=
+      `<audio src="${lastSongAudioUrl}" controls playsinline style="width:100%"></audio>`;
+    $("songAudioActions").classList.remove("hidden");
+    $("songStatus").textContent="Canzone cantata pronta.";
+
+    saveItem({
+      type:"audio",
+      url:lastSongAudioUrl,
+      title:"Canzone AI Italia"
+    });
+  }catch(e){
+    $("songStatus").textContent=e.message||"Generazione non riuscita.";
+  }finally{
+    $("makeSungSong").disabled=false;
+  }
+};
+
+$("saveSongAudio").onclick=()=>{
+  if(lastSongAudioUrl)downloadUrl(lastSongAudioUrl,"AI-Italia-canzone.mp3");
+};
+
+$("shareSongAudio").onclick=()=>{
+  if(lastSongAudioUrl)shareMedia(lastSongAudioUrl,"audio",$("songStatus"));
+};
 
 $("makeBook").onclick=async()=>{
   const idea=$("bookIdea").value.trim();
@@ -1134,6 +1249,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=8").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=9").catch(()=>{}));
 </script>
 </body></html>
