@@ -163,11 +163,16 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <h2>Crea video AI</h2>
 <textarea id="videoPrompt" placeholder="Descrivi il video da creare"></textarea>
 <input type="file" id="videoFile" accept="image/*" style="margin-top:8px">
+<select id="videoFormat" style="margin-top:8px">
+  <option value="auto">Formato automatico dalla foto</option>
+  <option value="720x1280">Verticale 720x1280</option>
+  <option value="1280x720">Orizzontale 1280x720</option>
+</select>
 <div class="row">
-<select id="duration"><option value="5">5 secondi</option><option value="10">10 secondi</option><option value="15">15 secondi</option></select>
+<select id="duration"><option value="4">4 secondi</option><option value="8">8 secondi</option><option value="12">12 secondi</option></select>
 <button class="primary" id="makeVideo">🎬 Genera video</button>
 </div>
-<div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui quando il provider video sarà collegato.</span></div>
+<div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui. Se usi una foto, l’app la adatta automaticamente alle dimensioni richieste.</span></div>
 <div class="status" id="videoStatus"></div>
 </div>
 </section>
@@ -635,22 +640,117 @@ $("editImage").onclick=async()=>{
 $("saveEditBtn").onclick=()=>lastEditUrl&&downloadUrl(lastEditUrl,"AI-Italia-modifica.png");
 $("openEditBtn").onclick=()=>lastEditUrl&&window.open(lastEditUrl,"_blank");
 
+
+async function normalizeVideoReference(file){
+  const objectUrl=URL.createObjectURL(file);
+  try{
+    const img=new Image();
+    img.src=objectUrl;
+    await new Promise((resolve,reject)=>{
+      img.onload=resolve;
+      img.onerror=()=>reject(new Error("Impossibile leggere la foto per il video."));
+    });
+
+    let size=$("videoFormat").value;
+    if(size==="auto"){
+      size=img.naturalWidth>=img.naturalHeight ? "1280x720" : "720x1280";
+    }
+
+    const [targetW,targetH]=size.split("x").map(Number);
+    const canvas=document.createElement("canvas");
+    canvas.width=targetW;
+    canvas.height=targetH;
+
+    const ctx=canvas.getContext("2d");
+    const scale=Math.max(targetW/img.naturalWidth,targetH/img.naturalHeight);
+    const drawW=img.naturalWidth*scale;
+    const drawH=img.naturalHeight*scale;
+    const dx=(targetW-drawW)/2;
+    const dy=(targetH-drawH)/2;
+
+    // Crop centrale per ottenere ESATTAMENTE le stesse dimensioni richieste a Sora.
+    ctx.drawImage(img,dx,dy,drawW,drawH);
+
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png",0.95));
+    if(!blob) throw new Error("Preparazione foto video non riuscita.");
+
+    const data=await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(r.result);
+      r.onerror=reject;
+      r.readAsDataURL(blob);
+    });
+
+    return {data,size};
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 $("makeVideo").onclick=async()=>{
-  const p=$("videoPrompt").value.trim();if(!p||!need($("videoStatus")))return;
-  $("videoStatus").textContent="Avvio video...";
+  const p=$("videoPrompt").value.trim();
+  if(!p||!need($("videoStatus")))return;
+
+  $("videoStatus").textContent="Preparo il video…";
+
   try{
     const f=$("videoFile").files[0];
-    const d=await jf("/api/video",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p,duration:+$("duration").value,image:f?await dataurl(f):null})});
+    let image=null;
+    let size=$("videoFormat").value==="1280x720" ? "1280x720" : "720x1280";
+
+    if(f){
+      if(f.size>10*1024*1024){
+        throw Error("Foto troppo grande (max 10 MB).");
+      }
+
+      $("videoStatus").textContent="Adatto la foto al formato video…";
+      const normalized=await normalizeVideoReference(f);
+      image=normalized.data;
+      size=normalized.size;
+    }else if($("videoFormat").value!=="auto"){
+      size=$("videoFormat").value;
+    }
+
+    $("videoStatus").textContent="Avvio generazione video…";
+
+    const d=await jf("/api/video",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        prompt:p,
+        duration:+$("duration").value,
+        image,
+        size
+      })
+    });
+
     if(d.url)return showVideo(d.url);
     if(!d.job_id)throw Error("job_id mancante");
-    for(let i=0;i<100;i++){
+
+    for(let i=0;i<120;i++){
       await new Promise(r=>setTimeout(r,3000));
+
       const s=await jf("/api/video-status?id="+encodeURIComponent(d.job_id));
-      if(s.status==="failed")throw Error(s.error||"Video non riuscito");
-      if(s.url)return showVideo(s.url);
-      $("videoStatus").textContent="Video in elaborazione..."
+
+      if(s.status==="failed"){
+        throw Error(s.error||"Video non riuscito");
+      }
+
+      if(s.url){
+        return showVideo(s.url);
+      }
+
+      const progress=Number(s.progress||0);
+      $("videoStatus").textContent=
+        progress>0
+          ? `Video in elaborazione… ${progress}%`
+          : "Video in elaborazione…";
     }
-  }catch(e){$("videoStatus").textContent=e.message}
+
+    throw Error("Il video sta impiegando troppo tempo. Riprova tra poco.");
+  }catch(e){
+    $("videoStatus").textContent=e.message;
+  }
 };
 function showVideo(u){
   $("videoPreview").innerHTML=`<video src="${u}" controls playsinline></video>`;
@@ -671,6 +771,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=5").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=6").catch(()=>{}));
 </script>
 </body></html>
