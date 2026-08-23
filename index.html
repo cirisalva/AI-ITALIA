@@ -171,11 +171,21 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
   <option value="720x1280">Verticale 720x1280</option>
   <option value="1280x720">Orizzontale 1280x720</option>
 </select>
+
+<select id="videoAudio" style="margin-top:8px">
+  <option value="music">🎵 Musica</option>
+  <option value="dialogue">🗣️ Dialoghi</option>
+  <option value="ambient">🌳 Suoni ambientali</option>
+  <option value="music_fx">🎬 Musica + effetti</option>
+  <option value="full">🔊 Musica + dialoghi + effetti</option>
+  <option value="silent">🔇 Senza audio</option>
+</select>
+
 <div class="row">
 <select id="duration"><option value="4">4 secondi</option><option value="8">8 secondi</option><option value="12">12 secondi</option></select>
 <button class="primary" id="makeVideo">🎬 Genera video</button>
 </div>
-<div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui. Se usi una foto, l’app la adatta automaticamente alle dimensioni richieste.</span></div>
+<div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui. Puoi scegliere musica, dialoghi, effetti, suoni ambientali oppure nessun audio.</span></div>
 <div class="media-actions hidden" id="videoActions">
 <button id="saveVideoBtn">⬇️ Salva video</button>
 <button id="shareVideoBtn">📤 Condividi</button>
@@ -1158,9 +1168,37 @@ async function normalizeVideoReference(file){
   }
 }
 
+
+function videoAudioInstruction(mode){
+  switch(mode){
+    case "music":
+      return "Include original background music that matches the scene. No dialogue. The music must be original and not imitate a real song or artist.";
+    case "dialogue":
+      return "Include natural synchronized dialogue in Italian when appropriate. No background music unless essential to the scene.";
+    case "ambient":
+      return "Include synchronized ambient sounds and realistic sound effects. No background music and no spoken dialogue.";
+    case "music_fx":
+      return "Include original background music plus synchronized ambient sounds and sound effects. No spoken dialogue.";
+    case "full":
+      return "Include original background music, synchronized sound effects, ambient audio, and natural Italian dialogue when appropriate.";
+    case "silent":
+      return "Create the video without spoken dialogue, music, or intentional sound effects.";
+    default:
+      return "";
+  }
+}
+
 $("makeVideo").onclick=async()=>{
   const p=$("videoPrompt").value.trim();
   if(!p||!need($("videoStatus")))return;
+
+  const audioMode=$("videoAudio").value;
+  const finalPrompt=[
+    p,
+    "",
+    "AUDIO:",
+    videoAudioInstruction(audioMode)
+  ].join("\n");
 
   $("videoStatus").textContent="Preparo il video…";
 
@@ -1188,7 +1226,7 @@ $("makeVideo").onclick=async()=>{
       method:"POST",
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify({
-        prompt:p,
+        prompt:finalPrompt,
         duration:+$("duration").value,
         image,
         size
@@ -1249,6 +1287,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=9").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=10").catch(()=>{}));
 </script>
 </body></html>
