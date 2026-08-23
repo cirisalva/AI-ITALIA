@@ -88,7 +88,12 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 </div>
 <div class="voicebar">
   <button class="mic-big" id="micBtn">🎙️ Parla</button>
+  <select id="voiceChoice" aria-label="Scegli voce" style="min-width:145px;width:auto">
+    <option value="male">👨 Voce uomo</option>
+    <option value="female">👩 Voce donna</option>
+  </select>
   <button id="voiceReplyBtn">🔊 Voce: ON</button>
+  <button id="repeatVoiceBtn">🔁 Ripeti voce</button>
   <button id="stopVoiceBtn">⏹️ Ferma voce</button>
 </div>
 
@@ -199,6 +204,9 @@ let webOn=false;
 let lastImageUrl="";
 let lastEditUrl="";
 let voiceReply = localStorage.getItem("ai-voice-reply") !== "off";
+let voiceChoice = localStorage.getItem("ai-voice-choice") || "male";
+let currentAudio = null;
+let lastSpokenText = "";
 let recognition = null;
 let listening = false;
 
@@ -244,22 +252,87 @@ function setAvatarState(state,label){
   if(state)a.classList.add(state);
   $("avatarState").textContent=label||"Pronto";
 }
-function speakText(text){
-  if(!voiceReply || !("speechSynthesis" in window) || !text) return;
+async function speakText(text){
+  if(!voiceReply || !text) return;
+  lastSpokenText=String(text);
+
+  // Prima prova la voce OpenAI più naturale dal backend.
+  if(backend){
+    try{
+      stopSpeaking();
+      setAvatarState("thinking","Preparo la voce…");
+
+      const r=await fetch(backend+"/api/speech",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+          text:lastSpokenText,
+          voice_type:voiceChoice
+        })
+      });
+
+      if(!r.ok){
+        let d={};
+        try{d=await r.json()}catch{}
+        throw new Error(d.error||("Errore voce "+r.status));
+      }
+
+      const blob=await r.blob();
+      const url=URL.createObjectURL(blob);
+      const audio=new Audio(url);
+      currentAudio=audio;
+
+      audio.onplay=()=>setAvatarState("speaking",voiceChoice==="male"?"Voce uomo…":"Voce donna…");
+      audio.onended=()=>{
+        setAvatarState("","Pronto ad ascoltarti");
+        URL.revokeObjectURL(url);
+        currentAudio=null;
+      };
+      audio.onerror=()=>{
+        setAvatarState("","Pronto ad ascoltarti");
+        URL.revokeObjectURL(url);
+        currentAudio=null;
+      };
+
+      await audio.play();
+      return;
+    }catch(e){
+      console.warn("Voce OpenAI non disponibile, uso voce dispositivo:",e);
+    }
+  }
+
+  // Fallback: voce integrata nel dispositivo.
+  if(!("speechSynthesis" in window)) return;
   speechSynthesis.cancel();
-  const u=new SpeechSynthesisUtterance(String(text));
+  const u=new SpeechSynthesisUtterance(lastSpokenText);
   u.lang="it-IT";
   u.rate=1;
-  u.pitch=1;
-  u.onstart=()=>setAvatarState("speaking","Sto parlando…");
+  u.pitch=voiceChoice==="male"?0.86:1.12;
+  u.onstart=()=>setAvatarState("speaking",voiceChoice==="male"?"Voce uomo…":"Voce donna…");
   u.onend=()=>setAvatarState("","Pronto ad ascoltarti");
   u.onerror=()=>setAvatarState("","Pronto ad ascoltarti");
   speechSynthesis.speak(u);
 }
 function stopSpeaking(){
+  if(currentAudio){
+    try{currentAudio.pause();currentAudio.currentTime=0}catch{}
+    currentAudio=null;
+  }
   if("speechSynthesis" in window) speechSynthesis.cancel();
   setAvatarState("","Pronto ad ascoltarti");
 }
+$("voiceChoice").value=voiceChoice;
+$("voiceChoice").onchange=()=>{
+  voiceChoice=$("voiceChoice").value;
+  localStorage.setItem("ai-voice-choice",voiceChoice);
+  stopSpeaking();
+  $("chatStatus").textContent=voiceChoice==="male"?"Voce uomo selezionata.":"Voce donna selezionata.";
+};
+$("repeatVoiceBtn").onclick=()=>{
+  if(lastSpokenText) speakText(lastSpokenText);
+  else $("chatStatus").textContent="Non c'è ancora una risposta da ripetere.";
+};
+
 $("voiceReplyBtn").textContent=voiceReply?"🔊 Voce: ON":"🔇 Voce: OFF";
 $("voiceReplyBtn").classList.toggle("active",voiceReply);
 
@@ -526,6 +599,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=3").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=4").catch(()=>{}));
 </script>
 </body></html>
