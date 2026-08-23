@@ -68,7 +68,7 @@ app.get("/api/health", (req, res) => {
   res.json({
     ok: true,
     app: "AI Italia Backend",
-    version: "3.0-files-camera-voice",
+    version: "5.0-voice-male-female",
     keyConfigured: !!OPENAI_API_KEY
   });
 });
@@ -189,29 +189,223 @@ app.post("/api/image/edit", async (req, res) => {
   }
 });
 
-app.post("/api/video", async (req, res) => {
-  try {
-    const prompt = String(req.body?.prompt || "").trim();
-    if (!prompt) return res.status(400).json({ error: "prompt mancante" });
 
-    const id = `job_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    videoJobs.set(id, {
-      status: "failed",
-      error: "Il provider video non è ancora collegato in questa versione."
+app.post("/api/speech", async (req, res) => {
+  try {
+    if (!requireKey(res)) return;
+
+    const text = String(req.body?.text || "").trim();
+    const voiceType = String(req.body?.voice_type || "male");
+
+    if (!text) {
+      return res.status(400).json({ error: "testo mancante" });
+    }
+
+    // Etichette nell'app:
+    // uomo -> onyx (timbro più profondo)
+    // donna -> nova (timbro più chiaro)
+    const voice = voiceType === "female" ? "nova" : "onyx";
+
+    const response = await fetch(`${OPENAI_BASE_URL}/audio/speech`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${OPENAI_API_KEY}`
+      },
+      body: JSON.stringify({
+        model: process.env.OPENAI_TTS_MODEL || "gpt-4o-mini-tts",
+        voice,
+        input: text,
+        response_format: "mp3"
+      })
     });
 
-    res.json({ job_id: id });
+    if (!response.ok) {
+      const raw = await response.text();
+      let message = `Errore OpenAI voce ${response.status}`;
+      try {
+        const d = JSON.parse(raw);
+        message = d?.error?.message || message;
+      } catch {}
+      return res.status(response.status).json({ error: message });
+    }
+
+    const audio = Buffer.from(await response.arrayBuffer());
+    res.setHeader("Content-Type", "audio/mpeg");
+    res.setHeader("Cache-Control", "no-store");
+    res.send(audio);
   } catch (error) {
-    res.status(500).json({ error: error.message || "Errore video" });
+    res.status(500).json({
+      error: error.message || "Errore generazione voce"
+    });
   }
 });
 
-app.get("/api/video-status", (req, res) => {
-  const id = String(req.query?.id || "");
-  if (!id || !videoJobs.has(id)) {
-    return res.status(404).json({ error: "job non trovato", status: "failed" });
+app.post("/api/video", async (req, res) => {
+  try {
+    if (!requireKey(res)) return;
+
+    const prompt = String(req.body?.prompt || "").trim();
+    if (!prompt) {
+      return res.status(400).json({ error: "prompt mancante" });
+    }
+
+    // OpenAI Videos API supporta 4, 8 o 12 secondi.
+    const requested = Number(req.body?.duration || 4);
+    const seconds =
+      requested <= 5 ? "4" :
+      requested <= 10 ? "8" : "12";
+
+    const model = process.env.OPENAI_VIDEO_MODEL || "sora-2";
+    const size = String(req.body?.size || "720x1280");
+    const image = String(req.body?.image || "");
+
+    let data;
+
+    if (image.startsWith("data:image/")) {
+      const parsed = dataUrlParts(image);
+      if (!parsed) {
+        return res.status(400).json({ error: "immagine iniziale non valida" });
+      }
+
+      const bytes = Buffer.from(parsed.base64, "base64");
+      const form = new FormData();
+      form.append("model", model);
+      form.append("prompt", prompt);
+      form.append("seconds", seconds);
+      form.append("size", size);
+      form.append(
+        "input_reference",
+        new Blob([bytes], { type: parsed.mime }),
+        "reference-image.png"
+      );
+
+      const response = await fetch(`${OPENAI_BASE_URL}/videos`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
+        },
+        body: form
+      });
+
+      data = await readJson(response);
+    } else {
+      data = await openaiJson("/videos", {
+        model,
+        prompt,
+        seconds,
+        size
+      });
+    }
+
+    if (!data?.id) {
+      throw new Error("OpenAI non ha restituito l'ID del video.");
+    }
+
+    res.json({
+      job_id: data.id,
+      status: data.status || "queued",
+      progress: data.progress || 0,
+      seconds: data.seconds || seconds,
+      size: data.size || size
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message || "Errore generazione video"
+    });
   }
-  return res.json(videoJobs.get(id));
+});
+
+app.get("/api/video-status", async (req, res) => {
+  try {
+    if (!requireKey(res)) return;
+
+    const id = String(req.query?.id || "").trim();
+    if (!id) {
+      return res.status(400).json({
+        error: "job_id mancante",
+        status: "failed"
+      });
+    }
+
+    const response = await fetch(
+      `${OPENAI_BASE_URL}/videos/${encodeURIComponent(id)}`,
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    const data = await readJson(response);
+
+    if (data.status === "failed") {
+      return res.json({
+        status: "failed",
+        progress: data.progress || 0,
+        error: data?.error?.message || "Generazione video non riuscita."
+      });
+    }
+
+    if (data.status === "completed") {
+      const base = `${req.protocol}://${req.get("host")}`;
+      return res.json({
+        status: "completed",
+        progress: 100,
+        url: `${base}/api/video-content?id=${encodeURIComponent(id)}`
+      });
+    }
+
+    return res.json({
+      status: data.status || "in_progress",
+      progress: data.progress || 0
+    });
+  } catch (error) {
+    res.status(500).json({
+      error: error.message || "Errore stato video",
+      status: "failed"
+    });
+  }
+});
+
+app.get("/api/video-content", async (req, res) => {
+  try {
+    if (!requireKey(res)) return;
+
+    const id = String(req.query?.id || "").trim();
+    if (!id) {
+      return res.status(400).json({ error: "video id mancante" });
+    }
+
+    const response = await fetch(
+      `${OPENAI_BASE_URL}/videos/${encodeURIComponent(id)}/content`,
+      {
+        headers: {
+          "Authorization": `Bearer ${OPENAI_API_KEY}`
+        }
+      }
+    );
+
+    if (!response.ok) {
+      const data = await response.text();
+      return res.status(response.status).send(data);
+    }
+
+    const contentType = response.headers.get("content-type") || "video/mp4";
+    const buffer = Buffer.from(await response.arrayBuffer());
+
+    res.setHeader("Content-Type", contentType);
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${id}.mp4"`
+    );
+    res.setHeader("Cache-Control", "private, max-age=3600");
+    res.send(buffer);
+  } catch (error) {
+    res.status(500).json({
+      error: error.message || "Errore download video"
+    });
+  }
 });
 
 app.listen(PORT, () => {
