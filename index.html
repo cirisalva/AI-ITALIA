@@ -546,19 +546,91 @@ $("makeImage").onclick=async()=>{
 $("saveImageBtn").onclick=()=>lastImageUrl&&downloadUrl(lastImageUrl,"AI-Italia-immagine.png");
 $("openImageBtn").onclick=()=>lastImageUrl&&window.open(lastImageUrl,"_blank");
 
+
+async function normalizeEditImage(file){
+  const objectUrl = URL.createObjectURL(file);
+  try{
+    const img = new Image();
+    img.src = objectUrl;
+    await new Promise((resolve,reject)=>{
+      img.onload=resolve;
+      img.onerror=()=>reject(new Error("Impossibile leggere l'immagine."));
+    });
+
+    const ratio = img.naturalWidth / img.naturalHeight;
+    let targetW=1024, targetH=1024, size="1024x1024";
+
+    if(ratio > 1.18){
+      targetW=1536; targetH=1024; size="1536x1024";
+    }else if(ratio < 0.85){
+      targetW=1024; targetH=1536; size="1024x1536";
+    }
+
+    const canvas=document.createElement("canvas");
+    canvas.width=targetW;
+    canvas.height=targetH;
+    const ctx=canvas.getContext("2d");
+
+    // Copertura completa del canvas mantenendo le proporzioni.
+    const scale=Math.max(targetW/img.naturalWidth,targetH/img.naturalHeight);
+    const drawW=img.naturalWidth*scale;
+    const drawH=img.naturalHeight*scale;
+    const dx=(targetW-drawW)/2;
+    const dy=(targetH-drawH)/2;
+
+    ctx.drawImage(img,dx,dy,drawW,drawH);
+
+    const blob=await new Promise(resolve=>canvas.toBlob(resolve,"image/png",0.95));
+    if(!blob) throw new Error("Conversione immagine non riuscita.");
+
+    const data=await new Promise((resolve,reject)=>{
+      const r=new FileReader();
+      r.onload=()=>resolve(r.result);
+      r.onerror=reject;
+      r.readAsDataURL(blob);
+    });
+
+    return {data,size,filename:"edit-image.png"};
+  }finally{
+    URL.revokeObjectURL(objectUrl);
+  }
+}
+
 $("editImage").onclick=async()=>{
   const f=$("editFile").files[0],p=$("editPrompt").value.trim();
   if(!f||!p){$("editStatus").textContent="Scegli una foto e scrivi la modifica.";return}
   if(!need($("editStatus")))return;
   if(f.size>8*1024*1024){$("editStatus").textContent="Immagine troppo grande (max 8 MB).";return}
-  $("editStatus").textContent="Modifica...";
+
+  $("editStatus").textContent="Preparo l'immagine…";
+
   try{
-    const d=await jf("/api/image/edit",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({prompt:p,image:await dataurl(f),filename:f.name})});
-    const u=imgurl(d);if(!u)throw Error("Immagine mancante");
-    lastEditUrl=u;$("editPreview").innerHTML=`<img src="${u}">`;
+    const normalized=await normalizeEditImage(f);
+
+    $("editStatus").textContent="Modifica in corso…";
+
+    const d=await jf("/api/image/edit",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        prompt:p,
+        image:normalized.data,
+        filename:normalized.filename,
+        size:normalized.size
+      })
+    });
+
+    const u=imgurl(d);
+    if(!u)throw Error("Immagine mancante");
+
+    lastEditUrl=u;
+    $("editPreview").innerHTML=`<img src="${u}">`;
     $("editActions").classList.remove("hidden");
-    saveItem({type:"image",url:u});$("editStatus").textContent="Modifica completata."
-  }catch(e){$("editStatus").textContent=e.message}
+    saveItem({type:"image",url:u});
+    $("editStatus").textContent="Modifica completata."
+  }catch(e){
+    $("editStatus").textContent=e.message
+  }
 };
 $("saveEditBtn").onclick=()=>lastEditUrl&&downloadUrl(lastEditUrl,"AI-Italia-modifica.png");
 $("openEditBtn").onclick=()=>lastEditUrl&&window.open(lastEditUrl,"_blank");
@@ -599,6 +671,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=4").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=5").catch(()=>{}));
 </script>
 </body></html>
