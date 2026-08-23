@@ -17,7 +17,7 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:linear-gradient(160deg,#07111f,#11172b);color:var(--t);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif}
 .app{max-width:900px;margin:auto;padding:14px 12px 40px}header{display:flex;justify-content:space-between;align-items:center}h1{margin:0;font-size:27px}.sub,.status{color:var(--m);font-size:13px}
-.tabs{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:14px 0}.tab,button{border:1px solid var(--l);background:#10253d;color:#fff;border-radius:13px;padding:11px;font-weight:800}.tab.active,.primary{background:linear-gradient(135deg,var(--a),var(--a2));border:0}
+.tabs{display:grid;grid-template-columns:repeat(6,1fr);gap:7px;margin:14px 0}.tab,button{border:1px solid var(--l);background:#10253d;color:#fff;border-radius:13px;padding:11px;font-weight:800}.tab.active,.primary{background:linear-gradient(135deg,var(--a),var(--a2));border:0}
 .panel{display:none}.panel.active{display:block}.card{background:rgba(13,27,42,.97);border:1px solid var(--l);border-radius:18px;padding:14px;margin-bottom:12px}
 textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;color:white;border-radius:13px;padding:12px;font-size:15px}textarea{min-height:110px}
 .row{display:flex;gap:8px;margin-top:8px}.row>*{flex:1}.chat{height:46vh;min-height:300px;overflow:auto;display:flex;flex-direction:column;gap:8px;padding:5px}
@@ -62,12 +62,13 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 </head>
 <body>
 <div class="app">
-<header><div><h1>🤖 AI Italia</h1><div class="sub">Assistente, file, foto, immagini e video</div></div><div class="sub" id="clock"></div></header>
+<header><div><h1>🤖 AI Italia</h1><div class="sub">Assistente, file, foto, immagini, video e audio</div></div><div class="sub" id="clock"></div></header>
 
 <div class="tabs">
 <button class="tab active" data-id="chat">💬 Chat</button>
 <button class="tab" data-id="images">🖼️ Immagini</button>
 <button class="tab" data-id="video">🎬 Video</button>
+<button class="tab" data-id="audio">🎧 Audio</button>
 <button class="tab" data-id="archive">📁 Archivio</button>
 <button class="tab" data-id="settings">⚙️ Impostazioni</button>
 </div>
@@ -139,6 +140,7 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <div class="preview" id="imagePreview"><span class="sub">L'immagine apparirà qui</span></div>
 <div class="media-actions hidden" id="imageActions">
 <button id="saveImageBtn">⬇️ Salva immagine</button>
+<button id="shareImageBtn">📤 Condividi</button>
 <button id="openImageBtn">↗️ Apri</button>
 </div>
 <div class="status" id="imageStatus"></div>
@@ -152,6 +154,7 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <div class="preview" id="editPreview"><span class="sub">Il risultato apparirà qui</span></div>
 <div class="media-actions hidden" id="editActions">
 <button id="saveEditBtn">⬇️ Salva immagine</button>
+<button id="shareEditBtn">📤 Condividi</button>
 <button id="openEditBtn">↗️ Apri</button>
 </div>
 <div class="status" id="editStatus"></div>
@@ -173,8 +176,66 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <button class="primary" id="makeVideo">🎬 Genera video</button>
 </div>
 <div class="preview" id="videoPreview"><span class="sub">Il video apparirà qui. Se usi una foto, l’app la adatta automaticamente alle dimensioni richieste.</span></div>
+<div class="media-actions hidden" id="videoActions">
+<button id="saveVideoBtn">⬇️ Salva video</button>
+<button id="shareVideoBtn">📤 Condividi</button>
+<button id="openVideoBtn">↗️ Apri</button>
+</div>
 <div class="status" id="videoStatus"></div>
 </div>
+</section>
+
+
+<section class="panel" id="audio">
+
+<div class="card">
+<h2>🎵 Canzone inventata</h2>
+<div class="sub">Scrivi solo l'idea: l'AI inventa automaticamente titolo, strofe e ritornello.</div>
+<select id="songGenre" style="margin-top:8px">
+  <option value="pop">Pop</option>
+  <option value="romantica">Romantica</option>
+  <option value="napoletana">Napoletana</option>
+  <option value="rap">Rap</option>
+  <option value="dance">Dance</option>
+  <option value="rock">Rock</option>
+  <option value="altro">Altro</option>
+</select>
+<textarea id="songIdea" placeholder="Esempio: una canzone sull'amore che arriva all'improvviso" style="margin-top:8px"></textarea>
+<button class="primary" id="makeSongText" style="width:100%;margin-top:8px">✨ Crea titolo e testo</button>
+<textarea id="songResult" placeholder="Qui appariranno titolo e testo della canzone" style="margin-top:8px;min-height:260px"></textarea>
+<div class="media-actions">
+  <button id="saveSongText">⬇️ Salva testo</button>
+  <button id="shareSongText">📤 Condividi</button>
+</div>
+<div class="status" id="songStatus"></div>
+<div class="notice">Questa funzione crea titolo e testo originali. Non genera ancora una vera base musicale o una canzone cantata.</div>
+</div>
+
+<div class="card">
+<h2>📚 Audiolibro AI</h2>
+<div class="sub">Scrivi l'idea: l'AI inventa automaticamente titolo e testo del racconto. Poi puoi ascoltarlo con voce uomo o donna.</div>
+<textarea id="bookIdea" placeholder="Esempio: una storia emozionante ambientata a Napoli" style="margin-top:8px"></textarea>
+<select id="bookLength" style="margin-top:8px">
+  <option value="breve">Breve</option>
+  <option value="medio">Medio</option>
+</select>
+<button class="primary" id="makeBook" style="width:100%;margin-top:8px">✨ Crea audiolibro</button>
+<textarea id="bookResult" placeholder="Qui appariranno titolo e testo dell'audiolibro" style="margin-top:8px;min-height:300px"></textarea>
+<div class="row">
+  <select id="bookVoice">
+    <option value="male">👨 Voce uomo</option>
+    <option value="female">👩 Voce donna</option>
+  </select>
+  <button id="listenBook">▶️ Ascolta</button>
+  <button id="stopBook">⏹️ Ferma</button>
+</div>
+<div class="media-actions">
+  <button id="saveBookText">⬇️ Salva testo</button>
+  <button id="shareBookText">📤 Condividi</button>
+</div>
+<div class="status" id="bookStatus"></div>
+</div>
+
 </section>
 
 <section class="panel" id="archive">
@@ -189,7 +250,7 @@ textarea,input,select{width:100%;border:1px solid #2a4868;background:#091a2b;col
 <input id="backend" placeholder="https://tuo-backend.example.com">
 <div class="row"><button class="primary" id="saveBackend">Salva</button><button id="testBackend">Test</button></div>
 <div class="status" id="backendStatus"></div>
-<p class="sub">Endpoint:<br><code>POST /api/chat</code><br><code>POST /api/image</code><br><code>POST /api/image/edit</code><br><code>POST /api/video</code><br><code>GET /api/video-status?id=...</code><br><code>GET /api/health</code></p>
+<p class="sub">Endpoint:<br><code>POST /api/chat</code><br><code>POST /api/image</code><br><code>POST /api/image/edit</code><br><code>POST /api/video</code><br><code>GET /api/video-status?id=...</code><br><code>POST /api/speech</code><br><code>GET /api/health</code></p>
 </div>
 </section>
 </div>
@@ -208,6 +269,7 @@ let pending=[];
 let webOn=false;
 let lastImageUrl="";
 let lastEditUrl="";
+let lastVideoUrl="";
 let voiceReply = localStorage.getItem("ai-voice-reply") !== "off";
 let voiceChoice = localStorage.getItem("ai-voice-choice") || "male";
 let currentAudio = null;
@@ -327,8 +389,10 @@ function stopSpeaking(){
   setAvatarState("","Pronto ad ascoltarti");
 }
 $("voiceChoice").value=voiceChoice;
+$("bookVoice").value=voiceChoice;
 $("voiceChoice").onchange=()=>{
   voiceChoice=$("voiceChoice").value;
+  $("bookVoice").value=voiceChoice;
   localStorage.setItem("ai-voice-choice",voiceChoice);
   stopSpeaking();
   $("chatStatus").textContent=voiceChoice==="male"?"Voce uomo selezionata.":"Voce donna selezionata.";
@@ -526,7 +590,9 @@ function renderArchive(){
   a.forEach(o=>{
     const e=document.createElement("div");e.className="item";
     e.innerHTML=(o.type==="video"?`<video src="${o.url}" controls playsinline></video>`:`<img src="${o.url}">`)
-      +`<div class="pad"><b>${o.type==="video"?"Video":"Immagine"} AI</b><div class="sub">${new Date(o.date).toLocaleString("it-IT")}</div></div>`;
+      +`<div class="pad"><b>${o.type==="video"?"Video":"Immagine"} AI</b><div class="sub">${new Date(o.date).toLocaleString("it-IT")}</div><div class="row"><button class="archiveShare">📤 Condividi</button><button class="archiveSave">⬇️ Salva</button></div></div>`;
+    e.querySelector(".archiveShare").onclick=()=>shareMedia(o.url,o.type,$("videoStatus"));
+    e.querySelector(".archiveSave").onclick=()=>downloadUrl(o.url,o.type==="video"?"AI-Italia-video.mp4":"AI-Italia-immagine.png");
     g.appendChild(e)
   })
 }
@@ -536,6 +602,294 @@ function imgurl(d){return d.url||(d.image_base64?"data:image/png;base64,"+d.imag
 function downloadUrl(url,name){
   const a=document.createElement("a");a.href=url;a.download=name;a.target="_blank";a.rel="noopener";a.click()
 }
+
+async function mediaBlob(url){
+  if(url.startsWith("data:")){
+    const r=await fetch(url);
+    return await r.blob();
+  }
+  const r=await fetch(url);
+  if(!r.ok) throw new Error("Non riesco a preparare il file.");
+  return await r.blob();
+}
+
+function mediaExtension(blob,type){
+  const mime=(blob.type||"").toLowerCase();
+  if(type==="video"){
+    if(mime.includes("quicktime")) return "mov";
+    if(mime.includes("webm")) return "webm";
+    return "mp4";
+  }
+  if(mime.includes("jpeg")) return "jpg";
+  if(mime.includes("webp")) return "webp";
+  return "png";
+}
+
+async function shareMedia(url,type,statusEl){
+  if(!url)return;
+  const status=statusEl || $("videoStatus");
+
+  try{
+    status.textContent="Preparo la condivisione…";
+    const blob=await mediaBlob(url);
+    const ext=mediaExtension(blob,type);
+    const filename=type==="video"
+      ? `AI-Italia-video.${ext}`
+      : `AI-Italia-immagine.${ext}`;
+    const file=new File([blob],filename,{type:blob.type || (type==="video"?"video/mp4":"image/png")});
+
+    if(navigator.share){
+      const data={files:[file],title:type==="video"?"Video AI Italia":"Immagine AI Italia"};
+      if(!navigator.canShare || navigator.canShare({files:[file]})){
+        await navigator.share(data);
+        status.textContent="Condivisione aperta.";
+        return;
+      }
+
+      if(/^https?:/i.test(url)){
+        await navigator.share({title:data.title,url});
+        status.textContent="Condivisione aperta.";
+        return;
+      }
+    }
+
+    downloadUrl(url,filename);
+    status.textContent="Condivisione non disponibile: ho aperto il salvataggio.";
+  }catch(e){
+    if(e && e.name==="AbortError"){
+      status.textContent="";
+      return;
+    }
+    try{
+      if(navigator.share && /^https?:/i.test(url)){
+        await navigator.share({url});
+        status.textContent="Condivisione aperta.";
+        return;
+      }
+    }catch(_){}
+    status.textContent=e?.message || "Condivisione non disponibile.";
+  }
+}
+
+
+async function generateIndependentText(message,statusEl){
+  if(!need(statusEl))return "";
+  const d=await jf("/api/chat",{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify({
+      message,
+      attachments:[],
+      previous_response_id:null,
+      web:false
+    })
+  });
+  return d.text||d.message||d.output||"";
+}
+
+function saveTextFile(text,name){
+  if(!text)return;
+  const blob=new Blob([text],{type:"text/plain;charset=utf-8"});
+  const u=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=u;a.download=name;a.click();
+  setTimeout(()=>URL.revokeObjectURL(u),1000);
+}
+
+async function shareTextContent(text,title,statusEl){
+  if(!text)return;
+  try{
+    if(navigator.share){
+      await navigator.share({title,text});
+      statusEl.textContent="Condivisione aperta.";
+    }else{
+      await navigator.clipboard.writeText(text);
+      statusEl.textContent="Testo copiato negli appunti.";
+    }
+  }catch(e){
+    if(e?.name!=="AbortError") statusEl.textContent=e?.message||"Condivisione non disponibile.";
+  }
+}
+
+$("makeSongText").onclick=async()=>{
+  const idea=$("songIdea").value.trim();
+  if(!idea){$("songStatus").textContent="Scrivi prima l'idea della canzone.";return}
+  if(!need($("songStatus")))return;
+
+  const genre=$("songGenre").value;
+  $("songStatus").textContent="L'AI sta inventando titolo e testo…";
+  $("makeSongText").disabled=true;
+
+  try{
+    const prompt=[
+      "Crea una canzone completamente originale in italiano.",
+      "Inventa tu sia il TITOLO sia il TESTO.",
+      "Struttura: Titolo, Strofa 1, Ritornello, Strofa 2, Ritornello, eventuale Bridge, Ritornello finale.",
+      "Non copiare né imitare testi di canzoni esistenti.",
+      `Genere: ${genre}.`,
+      `Tema/idea: ${idea}.`
+    ].join("\n");
+
+    const text=await generateIndependentText(prompt,$("songStatus"));
+    if(!text)throw Error("Risposta vuota");
+    $("songResult").value=text;
+    $("songStatus").textContent="Canzone pronta.";
+  }catch(e){
+    $("songStatus").textContent=e.message;
+  }finally{
+    $("makeSongText").disabled=false;
+  }
+};
+
+$("saveSongText").onclick=()=>saveTextFile($("songResult").value.trim(),"AI-Italia-canzone.txt");
+$("shareSongText").onclick=()=>shareTextContent($("songResult").value.trim(),"Canzone AI Italia",$("songStatus"));
+
+$("makeBook").onclick=async()=>{
+  const idea=$("bookIdea").value.trim();
+  if(!idea){$("bookStatus").textContent="Scrivi prima l'idea dell'audiolibro.";return}
+  if(!need($("bookStatus")))return;
+
+  const length=$("bookLength").value;
+  $("bookStatus").textContent="L'AI sta creando titolo e racconto…";
+  $("makeBook").disabled=true;
+
+  try{
+    const lengthGuide=length==="medio"
+      ?"circa 1200-1600 parole, diviso in brevi capitoli"
+      :"circa 500-800 parole";
+
+    const prompt=[
+      "Crea un racconto completamente originale in italiano, pensato per essere ascoltato come audiolibro.",
+      "Inventa tu sia il TITOLO sia tutto il TESTO.",
+      "Scrivi in modo scorrevole, naturale e adatto alla lettura ad alta voce.",
+      `Lunghezza: ${lengthGuide}.`,
+      `Idea/tema: ${idea}.`,
+      "Non copiare libri o opere esistenti."
+    ].join("\n");
+
+    const text=await generateIndependentText(prompt,$("bookStatus"));
+    if(!text)throw Error("Risposta vuota");
+    $("bookResult").value=text;
+    $("bookStatus").textContent="Audiolibro pronto.";
+  }catch(e){
+    $("bookStatus").textContent=e.message;
+  }finally{
+    $("makeBook").disabled=false;
+  }
+};
+
+let bookReading=false;
+let bookChunks=[];
+let bookChunkIndex=0;
+
+function splitForSpeech(text,max=3200){
+  const clean=String(text||"").trim();
+  if(!clean)return [];
+  const parts=[];
+  let rest=clean;
+  while(rest.length>max){
+    let cut=rest.lastIndexOf(". ",max);
+    if(cut<max*0.55)cut=rest.lastIndexOf(" ",max);
+    if(cut<1)cut=max;
+    parts.push(rest.slice(0,cut+1).trim());
+    rest=rest.slice(cut+1).trim();
+  }
+  if(rest)parts.push(rest);
+  return parts;
+}
+
+async function playBookChunk(){
+  if(!bookReading || bookChunkIndex>=bookChunks.length){
+    bookReading=false;
+    $("bookStatus").textContent=bookChunkIndex>=bookChunks.length?"Lettura completata.":"";
+    return;
+  }
+
+  const text=bookChunks[bookChunkIndex];
+  $("bookStatus").textContent=`Lettura parte ${bookChunkIndex+1} di ${bookChunks.length}…`;
+
+  try{
+    stopSpeaking();
+
+    const r=await fetch(backend+"/api/speech",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        text,
+        voice_type:$("bookVoice").value
+      })
+    });
+
+    if(!r.ok){
+      let d={};
+      try{d=await r.json()}catch{}
+      throw Error(d.error||("Errore voce "+r.status));
+    }
+
+    const blob=await r.blob();
+    const url=URL.createObjectURL(blob);
+    const audio=new Audio(url);
+    currentAudio=audio;
+
+    audio.onended=()=>{
+      URL.revokeObjectURL(url);
+      currentAudio=null;
+      if(!bookReading)return;
+      bookChunkIndex++;
+      playBookChunk();
+    };
+    audio.onerror=()=>{
+      URL.revokeObjectURL(url);
+      currentAudio=null;
+      bookReading=false;
+      $("bookStatus").textContent="Errore durante la lettura.";
+    };
+
+    await audio.play();
+  }catch(e){
+    // Fallback alla voce del dispositivo per la parte corrente.
+    if("speechSynthesis" in window){
+      const u=new SpeechSynthesisUtterance(text);
+      u.lang="it-IT";
+      u.pitch=$("bookVoice").value==="male"?0.86:1.12;
+      u.rate=1;
+      u.onend=()=>{
+        if(!bookReading)return;
+        bookChunkIndex++;
+        playBookChunk();
+      };
+      u.onerror=()=>{
+        bookReading=false;
+        $("bookStatus").textContent="Errore durante la lettura.";
+      };
+      speechSynthesis.speak(u);
+    }else{
+      bookReading=false;
+      $("bookStatus").textContent=e.message;
+    }
+  }
+}
+
+$("listenBook").onclick=()=>{
+  const text=$("bookResult").value.trim();
+  if(!text){$("bookStatus").textContent="Prima crea o inserisci il testo dell'audiolibro.";return}
+  if(!need($("bookStatus")))return;
+
+  stopSpeaking();
+  bookChunks=splitForSpeech(text);
+  bookChunkIndex=0;
+  bookReading=true;
+  playBookChunk();
+};
+
+$("stopBook").onclick=()=>{
+  bookReading=false;
+  stopSpeaking();
+  $("bookStatus").textContent="Lettura fermata.";
+};
+
+$("saveBookText").onclick=()=>saveTextFile($("bookResult").value.trim(),"AI-Italia-audiolibro.txt");
+$("shareBookText").onclick=()=>shareTextContent($("bookResult").value.trim(),"Audiolibro AI Italia",$("bookStatus"));
 
 $("makeImage").onclick=async()=>{
   const p=$("imagePrompt").value.trim();if(!p||!need($("imageStatus")))return;
@@ -549,6 +903,7 @@ $("makeImage").onclick=async()=>{
   }catch(e){$("imageStatus").textContent=e.message}
 };
 $("saveImageBtn").onclick=()=>lastImageUrl&&downloadUrl(lastImageUrl,"AI-Italia-immagine.png");
+$("shareImageBtn").onclick=()=>lastImageUrl&&shareMedia(lastImageUrl,"image",$("imageStatus"));
 $("openImageBtn").onclick=()=>lastImageUrl&&window.open(lastImageUrl,"_blank");
 
 
@@ -638,6 +993,7 @@ $("editImage").onclick=async()=>{
   }
 };
 $("saveEditBtn").onclick=()=>lastEditUrl&&downloadUrl(lastEditUrl,"AI-Italia-modifica.png");
+$("shareEditBtn").onclick=()=>lastEditUrl&&shareMedia(lastEditUrl,"image",$("editStatus"));
 $("openEditBtn").onclick=()=>lastEditUrl&&window.open(lastEditUrl,"_blank");
 
 
@@ -753,9 +1109,16 @@ $("makeVideo").onclick=async()=>{
   }
 };
 function showVideo(u){
+  lastVideoUrl=u;
   $("videoPreview").innerHTML=`<video src="${u}" controls playsinline></video>`;
-  saveItem({type:"video",url:u});$("videoStatus").textContent="Video pronto."
+  $("videoActions").classList.remove("hidden");
+  saveItem({type:"video",url:u});
+  $("videoStatus").textContent="Video pronto."
 }
+
+$("saveVideoBtn").onclick=()=>lastVideoUrl&&downloadUrl(lastVideoUrl,"AI-Italia-video.mp4");
+$("shareVideoBtn").onclick=()=>lastVideoUrl&&shareMedia(lastVideoUrl,"video",$("videoStatus"));
+$("openVideoBtn").onclick=()=>lastVideoUrl&&window.open(lastVideoUrl,"_blank");
 
 $("saveBackend").onclick=()=>{
   backend=$("backend").value.trim().replace(/\/+$/,"");
@@ -771,6 +1134,6 @@ $("testBackend").onclick=async()=>{
   }catch(e){$("backendStatus").textContent="Backend non raggiungibile."}
 };
 
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=6").catch(()=>{}));
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("./sw.js?v=8").catch(()=>{}));
 </script>
 </body></html>
